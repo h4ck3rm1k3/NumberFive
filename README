@@ -4,3 +4,7 @@ siehe: http://wiki.piratenpartei.de/Benutzer:NumberFive
 
 Die anhaengende Library war urspruenglich mal http://rbmediawiki.rubyforge.org/rdoc/
 wurde aber bereits massiv modifiziert.
+
+Install :
+        edit .conf/credentials.rb
+        sudo gem install  rbmediawiki

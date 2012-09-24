@@ -1,9 +1,39 @@
 #! /usr/bin/ruby1.8
+# -*- coding: utf-8 -*-
 
-require '/home/many/wiki.pp/NumberFive/lib/rbmediawiki'
-require '/home/many/wiki.pp/NumberFive/.conf/credentials'
+#/var/lib/gems/1.8/specifications/tilt-1.3.3.gemspec
+
+#require '../rbmediawiki/lib/rbmediawiki'
+
+# or 
+require 'rubygems'
+require 'rbmediawiki'
+
+
+require 'pp'
+require './.conf/credentials'
 
 # Sieht komplizierter aus als es ist.
+if (!defined?(WIKI_USER)) 
+  warn "WIKI_USER not defined";
+  exit 1
+end
+
+if (!defined?(WIKI_PASSWORD)) 
+  warn "WIKI_PASSWORD not defined";
+  exit 1
+end
+
+if (!defined?(WIKI_SERVER)) 
+  warn "WIKI_SERVER not defined";
+  exit 1
+end
+
+if (!defined?(WIKI_APIURL)) 
+  warn "WIKI_APIURL not defined";
+  exit 1
+end
+
 
 # Open Wiki Connection
 wiki = Api.new(nil, nil, WIKI_USER, WIKI_SERVER, WIKI_APIURL)
@@ -17,11 +47,31 @@ timeStart = Time.now - (14 * 24 * 60 * 60)
 timeStartstring = timeStart.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 # Query the List of pages thats gonna be deleted
-toDelete = wiki.query_list_categorymembers(:cmtitle => "Kategorie:Löschen", 
-	:cmlimit => 100, :cmprop => "timestamp|ids|title", :cmsort => "timestamp", 
-	:cmdir => "desc", :cmstart => timeStartstring)
+# http://wiki.piratenpartei.de/Kategorie:L%C3%B6schen
+
+# parms = {
+#   :cmtitle => "Kategorie:Löschen", 
+#   'cmtitle' => "Kategorie:Löschen", 
+#   :cmlimit => 100, 
+#   :cmprop => "timestamp|ids|title", 
+#   :cmsort => "timestamp", 
+#   :cmdir => "desc", 
+#   :cmstart => timeStartstring
+# }
+# pp parms
+
+toDelete = wiki.query_list_categorymembers("",
+                                           "Kategorie:Löschen",
+                                           "timestamp|ids|title")
 
 deleted = 0
+
+#pp toDelete
+
+if (!defined?(toDelete["query"]["categorymembers"])) 
+  warn "nothing to delete"
+  exit 0
+end
 
 # are there actually pages to delete?
 cm = toDelete["query"]["categorymembers"]
@@ -31,7 +81,7 @@ end
 
 
 begin
-  loeschlog = Page.new("Benutzer:NumberFive/Loeschprotokoll", wiki)
+  loeschlog = Page.new("Benutzer:" + WIKI_USER + "/Loeschprotokoll", wiki)
   loeschtext = ""
 
   # iterate through list of categorymembers
@@ -42,6 +92,7 @@ begin
       reason = content["content"].match(/.*\{\{(SLA|(schnell)?L..?schen)\|?(.*?)?\}\}.*/i)
 
       if reason != nil
+#        warn "check cat" + cm["title"]
           # normalize category
           titel = cm["title"]
 	  if cm["title"].match(/^Kategorie:/)
@@ -54,8 +105,19 @@ begin
 	  else
             loeschtext = loeschtext + "<br/> [[#{titel}]]: " + reason[3]
 	  end
-        page.delete("Automatische Loeschung nach 14 Tagen per " +
-          "[[Benutzer:NumberFive/Loeschbot]]: " + reason[3])
+
+
+        warn "Automatische Loeschung nach 14 Tagen per " +     "[[Benutzer:" + WIKI_USER + "/Loeschbot]]: " + reason[3]
+
+        begin
+
+          page.delete("Automatische Loeschung nach 14 Tagen per " +
+                      "[[Benutzer:" + WIKI_USER + "/Loeschbot]]: " + reason[3])
+
+        rescue 
+          warn "delete failed:" + cm["title"]
+        end
+
       else
         loeschtext = "<br/> :: [[" + cm["title"] + "]] -- '''Fehler beim Loeschen!"
       end # if reason != nil
@@ -72,6 +134,8 @@ ensure
   # in any case, write the log at the wiki
   if loeschtext != ""
     loeschtext = "\n== " + Time.now.to_s + " == \n" + loeschtext
-    loeschlog.append(loeschtext, "Loeschlog", false, true)
+#    warn loeschtext
+#    pp loeschlog
+#    loeschlog.append(loeschtext, "Loeschlog", false, true)
   end
 end
